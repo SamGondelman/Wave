@@ -1,0 +1,29 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file alias="shader.frag">shaders/shader.frag</file>
+        <file alias="shader.vert">shaders/shader.vert</file>
+        <file alias="fullscreenQuad.vert">shaders/fullscreenQuad.vert</file>
+        <file alias="lighting.frag">shaders/lighting.frag</file>
+        <file alias="lighting.vert">shaders/lighting.vert</file>
+        <file alias="bright.frag">shaders/bright.frag</file>
+        <file alias="horizontalBlur.frag">shaders/horizontalBlur.frag</file>
+        <file alias="verticalBlur.frag">shaders/verticalBlur.frag</file>
+        <file alias="texture.frag">shaders/texture.frag</file>
+        <file alias="bloom.frag">shaders/bloom.frag</file>
+        <file alias="lightWorld.frag">shaders/lightWorld.frag</file>
+        <file alias="waterWorld.frag">shaders/waterWorld.frag</file>
+        <file alias="lightParticlesDraw.frag">shaders/lightParticlesDraw.frag</file>
+        <file alias="lightParticlesDraw.vert">shaders/lightParticlesDraw.vert</file>
+        <file alias="lightParticlesUpdate.frag">shaders/lightParticlesUpdate.frag</file>
+        <file alias="fireParticlesDraw.frag">shaders/fireParticlesDraw.frag</file>
+        <file alias="fireParticlesDraw.vert">shaders/fireParticlesDraw.vert</file>
+        <file alias="fireParticlesUpdate.frag">shaders/fireParticlesUpdate.frag</file>
+        <file alias="distortion.frag">shaders/distortion.frag</file>
+        <file alias="distortionStencil.frag">shaders/distortionStencil.frag</file>
+        <file alias="rock.vert">shaders/rock.vert</file>
+        <file alias="rock.frag">shaders/rock.frag</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file alias="shieldNormalMap.png">images/shieldNormalMap.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,6 @@
+.DS_Store
+debug/
+release/
+Makefile
+Makefile.Debug
+Makefile.Release
