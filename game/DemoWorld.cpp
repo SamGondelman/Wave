@@ -9,9 +9,12 @@
 #include "Player.h"
 #include "SphereMesh.h"
 #include "CubeMesh.h"
+#include "CylinderMesh.h"
 
 #include <ws2bth.h>
 #include <iostream>
+
+#include <winuser.h>
 
 #define M_2PI 6.28318530718f
 
@@ -121,27 +124,6 @@ void DemoWorld::startServer() {
     }
 
     closesocket(listenSocket);
-
-//    const int DEFAULT_BUFLEN = 512;
-//    char recvbuf[DEFAULT_BUFLEN];
-//    int recvbuflen = DEFAULT_BUFLEN;
-//    int numBytes = recv(clientSocket, recvbuf, recvbuflen, 0);
-//    while (numBytes > 0) {
-//        std::cout << numBytes << std::endl;
-//        float *res = (float *) recvbuf;
-//        for (int i = 0; i < numBytes; i += sizeof(float)) {
-//            std::cout << *((float *)((char *)res + i)) << " ";
-//        }
-//        std::cout << std::endl;
-//        numBytes = recv(clientSocket, recvbuf, recvbuflen, 0);
-//    }
-
-//    if (numBytes < 0) {
-//        std::cout << "recv failed with error code: " << WSAGetLastError() << std::endl;
-//        closesocket(clientSocket);
-//        WSACleanup();
-//        exit(1);
-//    }
 }
 
 void DemoWorld::makeCurrent() {
@@ -150,12 +132,12 @@ void DemoWorld::makeCurrent() {
 }
 
 void DemoWorld::update(float dt) {
-//    View::m_player->setEye(glm::vec3(0.5f*glm::sin(View::m_globalTime/5.0f), 0.5f, 0.5f*glm::cos(View::m_globalTime/5.0f)));
-    View::m_player->setEye(glm::vec3(0.8f, 0.8f, 0.8f));
-    View::m_player->setCenter(glm::vec3(0));
+    View::m_player->setEye(glm::vec3(0.8f*glm::sin(View::m_globalTime/5.0f), 0.8f, 0.8f*glm::cos(View::m_globalTime/5.0f)));
+//    View::m_player->setEye(glm::vec3(0.8f, 0.8f, 0.8f));
+    View::m_player->setCenter(glm::vec3(0, 0.15, 0));
 
     if (serverStarted) {
-        const int MAX_PACKETS = 40;
+        const int MAX_PACKETS = 150;
         const int DEFAULT_BUFLEN = Gesture::NUM_DATA * MAX_PACKETS;
         char recvbuf[DEFAULT_BUFLEN];
         int recvbuflen = DEFAULT_BUFLEN;
@@ -173,47 +155,166 @@ void DemoWorld::update(float dt) {
         } else if (numBytes == DEFAULT_BUFLEN) {
             std::cout << "Received max numBytes." << std::endl;
         }
-        float *res = (float *) recvbuf;
-        float *data = (float *) m_handData.data();
-        int numFloats = numBytes / sizeof(float);
-        for (int i = 0; i < numFloats; i++) {
-            int j = i % Gesture::NUM_DATA;
-            data[j] += res[j];
+        glm::vec3 *res = (glm::vec3 *) recvbuf;
+//        float *data = (float *) m_handData.data();
+        int numVecs = numBytes / sizeof(float) / 3;
+        for (int i = 0; i < numVecs; i++) {
+            int j = i % (Gesture::NUM_DATA / 3);
+            m_handData[j] += getQuat(m_handData[j]) * res[i];
             // 0 < angle < 2*PI
-            data[j] = glm::mod(data[j], M_2PI);
+            m_handData[j] = glm::mod(m_handData[j], M_2PI);
         }
     }
-
-    // arm swinging
-    m_handData[PALM_ROT].y = M_PI_2 * glm::sin(View::m_globalTime * 1.5) - M_PI_2;
-    m_handData[FOREARM_ROT].y = M_PI_2 * glm::sin(View::m_globalTime * 1.5) - M_PI_2;
-    m_handData[UPPERARM_ROT].y = 0.66 * M_PI_2 * glm::sin(View::m_globalTime * 1.5) - M_PI_2;
 
     if (m_isRecordingMotion) m_recordedMotion.insert(m_recordedMotion.end(), m_handData.begin(), m_handData.end());
 
     m_waveDetector.update(dt, m_handData);
+    for (auto &g : m_waveDetector.getCurrentGestures()) {
+        if (m_waveDetector.getGestureNames()[g] == "light switch") {
+            switchLight();
+        } else if (m_waveDetector.getGestureNames()[g] == "brightness") {
+            lightCubeBrightness = (glm::clamp(glm::mod((float)(m_handData[PALM_ROT].z + M_PI_2), M_2PI) / M_PI, 0.5, 1.5) - 0.5f);
+        } else if (m_waveDetector.getGestureNames()[g] == "scroll up") {
+            scroll(true);
+            std::cout << "scroll up" << std::endl;
+        } else if (m_waveDetector.getGestureNames()[g] == "scroll down") {
+            scroll(false);
+            std::cout << "scroll down" << std::endl;
+        } else if (m_waveDetector.getGestureNames()[g] == "set screen") {
+            setScreenPlane();
+        } else if (m_waveDetector.getGestureNames()[g] == "click") {
+            checkClick();
+        }
+    }
+
+    // turn on light box (motion)
+    // set brightness of box (instant)
+    // scrolling up and down(motion)
+    // set screen plane (instant) 0.0345 * 0.0195
+    // click (instant)
+
+    if (m_mode == NONE) {
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 90));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(290, 0, 270));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(290, 0, 270));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270, 0, 270));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(270, 0, 270));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(240, 0, 270));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(240, 0, 270));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(230, 0, 270));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(230, 0, 270));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 270));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+    } else if (m_mode == LIGHT_ON) {
+        float yawDiff = 30 * glm::sin(View::m_globalTime/3.0f);
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, 180));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 340 + yawDiff, 180));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 340 + yawDiff, 180));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0 + yawDiff, 180));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0 + yawDiff, 180));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 30 + yawDiff, 180));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 30 + yawDiff, 180));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 40 + yawDiff, 180));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 40 + yawDiff, 180));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 330 + yawDiff, 180));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime/2.0f)-1), 30 * glm::sin(View::m_globalTime*1.2f), 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime*1.5f)-1), 30 * glm::sin(View::m_globalTime/0.8f), 90));
+    } else if (m_mode == BRIGHTNESS) {
+        float yawDiff = 30 * glm::sin(View::m_globalTime/3.0f);
+        float roll = -178 * glm::sin(View::m_globalTime/2.3f) + 89;
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 10 + yawDiff, roll));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime/2.0f)-1), 30 * glm::sin(View::m_globalTime*1.2f), 270));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime*1.5f)-1), 30 * glm::sin(View::m_globalTime/0.8f), 270));
+    } else if (m_mode == SCROLL_UP) {
+        float pitch = 45 * glm::sin(View::m_globalTime*3.0f);
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(270 + pitch, 340, 0));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(180 + pitch, 340, 0));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, 0, 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+    } else if (m_mode == SCROLL_DOWN) {
+        float pitch = 45 * glm::sin(View::m_globalTime*3.0f);
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270 + pitch, 0, 0));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(180 + pitch, 0, 0));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(270 + pitch, 340, 0));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(180 + pitch, 340, 0));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, 0, 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+    } else if (m_mode == SET_PLANE) {
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(90, 0, 0));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + 45 * (glm::sin(View::m_globalTime/2.0f)+1), 0, 0));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(270 + 90 * (glm::sin(View::m_globalTime/2.0f)+1), 0, 0));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(270, 0, 0));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 340, 0));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(270, 340, 0));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 330, 0));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(270, 330, 0));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 300 + 75 * (glm::sin(View::m_globalTime/2.0f)+1), 0));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(60 - 25 * (glm::sin(View::m_globalTime/2.0f)+1), -20 * (glm::sin(View::m_globalTime/2.0f)+1), 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270 + 22.5 * (glm::sin(View::m_globalTime/2.0f)+1), 0, 180));
+    } else if (m_mode == CLICK) {
+        float pitch = 10 * glm::sin(View::m_globalTime*3.0f) - 10;
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270 + pitch, 0, 0));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(180 + pitch, 0, 0));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(270 + pitch, 340, 0));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(180 + pitch, 340, 0));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(45 + 10 * glm::sin(View::m_globalTime/1.7f), 0, 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(295, 30 * glm::sin(View::m_globalTime/1.5f) + 25, 180));
+    }
 }
 
 void DemoWorld::reset() {
     // Calibrated hand orientation
     m_handData.resize(NUM_HAND_DATA);
     // rotations are pitch, yaw, roll
-    m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 270, 270));
-    m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 310, 270));
-    m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 310, 270));
-    m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 270, 270));
-    m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 270, 270));
-    m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 240, 270));
-    m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 240, 270));
-    m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 230, 270));
-    m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 230, 270));
-    m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 320, 270));
-    m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, 270, 270));
-    m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(0, 270, 270));
+    m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 90));
+    m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(290, 0, 270));
+    m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(290, 0, 270));
+    m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270, 0, 270));
+    m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(270, 0, 270));
+    m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(240, 0, 270));
+    m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(240, 0, 270));
+    m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(230, 0, 270));
+    m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(230, 0, 270));
+    m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 270));
+    m_handData[FOREARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+    m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+
+    m_handPos.resize(NUM_HAND_POS);
 }
 
 void DemoWorld::drawGeometry() {
-    drawHand(m_handData);
+    drawHand(m_handData, 0.01f, true);
 
     if (m_waveDetector.getVisID() > 0) {
         if (m_waveDetector.getVisID() <= (int) m_waveDetector.getInstantGestures().size()) {
@@ -235,9 +336,56 @@ void DemoWorld::drawGeometry() {
     mat.shininess = 10.0f;
     m_program->applyMaterial(mat);
     View::m_cube->draw();
+
+    // demo light cube
+    if (renderLightCube) {
+        M = glm::translate(glm::vec3(0.0f, 0.6f, 0.0f)) * glm::scale(glm::vec3(0.1));
+        m_program->setUniform("M", M);
+        CS123SceneMaterial mat;
+        mat.cAmbient = glm::vec4(0, 0, 0, 1);
+        mat.cDiffuse = glm::vec4(lightCubeBrightness * glm::vec3(1, 1, 0), 1);
+        mat.cSpecular = glm::vec4(0.7, 0.7, 0.7, 1);
+        mat.shininess = 10.0f;
+        m_program->applyMaterial(mat);
+        View::m_cube->draw();
+    }
+
+    if (!glm::isnan(screenPlanePos.x)) {
+        M = glm::translate(screenPlanePos) * screenPlaneRot * glm::scale(glm::vec3(0.001f, 0.195f, 0.345f));
+        m_program->setUniform("M", M);
+        CS123SceneMaterial mat;
+        mat.cAmbient = glm::vec4(0.1, 0.1, 0.1, 1);
+        mat.cDiffuse = glm::vec4(0.7, 0.7, 0.7, 1);
+        mat.cSpecular = glm::vec4(0.3, 0.3, 0.3, 1);
+        mat.shininess = 10.0f;
+        m_program->applyMaterial(mat);
+        View::m_cube->draw();
+    }
+
+    if (!glm::isnan(m_clickPoint.x)) {
+        M = glm::translate(m_clickPoint) * glm::scale(glm::vec3(0.05f));
+        m_program->setUniform("M", M);
+        CS123SceneMaterial mat;
+        mat.cAmbient = glm::vec4(0.1, 0.1, 0.1, 1);
+        mat.cDiffuse = glm::vec4(1, 0, 0, 1);
+        mat.cSpecular = glm::vec4(0.3, 0.3, 0.3, 1);
+        mat.shininess = 10.0f;
+        m_program->applyMaterial(mat);
+        View::m_sphere->draw();
+    }
 }
 
-void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale) {
+glm::quat DemoWorld::getQuat(const glm::vec3 &p) {
+    float pitch = p.x;
+    float yaw = p.y;
+    float roll = p.z;
+    glm::quat pitchQuat(glm::cos(pitch / 2.0f), glm::cross(glm::vec3(0, 0, -1), glm::vec3(0, 1, 0) * glm::sin(pitch / 2.0f)));
+    glm::quat yawQuat(glm::cos(yaw / 2.0f), glm::vec3(0, 1, 0) * glm::sin((yaw / 2.0f)));
+    glm::quat rollQuat(glm::cos(roll / 2.0f), glm::vec3(0, 0, -1) * glm::sin((roll / 2.0f)));
+    return glm::normalize(yawQuat * pitchQuat * rollQuat);
+}
+
+void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool savePos) {
     CS123SceneMaterial mat;
     mat.cAmbient = glm::vec4(0.1, 0, 0, 1);
     mat.cDiffuse = glm::vec4(0, 1, 0, 1);
@@ -249,20 +397,27 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale) {
     if (glm::isnan(palmRot.x)) palmRot.x = 0;
     if (glm::isnan(palmRot.y)) palmRot.y = 0;
     if (glm::isnan(palmRot.z)) palmRot.z = 0;
-    glm::quat handRotQuat = glm::normalize(glm::quat(palmRot));
+    glm::quat handRotQuat = getQuat(palmRot);
     glm::mat4 handRot = glm::toMat4(handRotQuat);
-    glm::mat4 handScale = glm::scale(glm::vec3(scale));
+    glm::mat4 handScale = glm::scale(glm::vec3(0.01, 0.01, 2.0*scale));
 
-    const glm::vec3 shoulder = glm::vec3(0.25, 0.5, 0);
-    glm::vec3 elbow = shoulder + m_segmentLengths[2 * WRIST] * glm::normalize(glm::quat(data[UPPERARM_ROT]) * glm::vec3(0, 0, -1));
+    const glm::vec3 shoulder = glm::vec3(0.22, 0.47, 0);
+    glm::vec3 elbow = shoulder + m_segmentLengths[2 * WRIST] * (getQuat(data[UPPERARM_ROT]) * glm::vec3(0, 0, -1));
     if (glm::isnan(elbow.x)) elbow.x = 0;
     if (glm::isnan(elbow.y)) elbow.y = 0;
     if (glm::isnan(elbow.z)) elbow.z = 0;
-    glm::vec3 wrist = elbow + m_segmentLengths[2 * WRIST - 1] * glm::normalize(glm::quat(data[FOREARM_ROT]) * glm::vec3(0, 0, -1));
+    glm::vec3 wrist = elbow + m_segmentLengths[2 * WRIST - 1] * (getQuat(data[FOREARM_ROT]) * glm::vec3(0, 0, -1));
+
     if (glm::isnan(wrist.x)) wrist.x = 0;
     if (glm::isnan(wrist.y)) wrist.y = 0;
     if (glm::isnan(wrist.z)) wrist.z = 0;
-    glm::vec3 palmPos = wrist + handRotQuat * m_offsets[WRIST];
+    glm::vec3 palmPos = wrist - handRotQuat * m_offsets[WRIST];
+//    palmPos = glm::vec3(0);
+
+    if (savePos) {
+        m_handPos[PALM_POS] = palmPos;
+        m_handPos[ELBOW_POS] = elbow;
+    }
 
     glm::mat4 handPos = glm::translate(palmPos);
 
@@ -271,9 +426,11 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale) {
     m_program->applyMaterial(mat);
     View::m_sphere->draw();
 
+    const float NUM_POINTS_PER_FINGER = 3;
     for (int i = 0; i < NUM_FINGERS; i++) {
         // Knuckles/wrist
         M = handPos * handRot * glm::translate(m_offsets[i]) * handScale;
+        m_handPos[FIRST_KNUCKLE_POS + i * NUM_POINTS_PER_FINGER] = glm::vec3(M[3][0], M[3][1], M[3][2]);
         m_program->setUniform("M", M);
         mat.cDiffuse = glm::vec4(0, 1, 0, 1);
         m_program->applyMaterial(mat);
@@ -283,34 +440,36 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale) {
         if (i < WRIST) {
             int firstIndex = FIRST_FINGER + 2 * i;
             glm::vec3 firstJoint = palmPos + handRotQuat * m_offsets[i] +
-                    m_segmentLengths[2 * i] * glm::normalize(glm::quat(data[firstIndex]) * glm::vec3(0, 0, -1));
-            M = glm::translate(firstJoint) * glm::toMat4(glm::quat(data[firstIndex])) * handScale;
+                    m_segmentLengths[2 * i] * (getQuat(data[firstIndex]) * glm::vec3(0, 0, -1));
+            if (savePos) m_handPos[FIRST_KNUCKLE_POS + i * NUM_POINTS_PER_FINGER + 1] = firstJoint;
+            M = glm::translate(firstJoint) * glm::mat4_cast(getQuat(data[firstIndex])) * handScale;
             m_program->setUniform("M", M);
-            mat.cDiffuse = glm::vec4(0, 0, 1, 1);
+            mat.cDiffuse = glm::vec4(1, 0, 0, 1);
             m_program->applyMaterial(mat);
-            View::m_sphere->draw();
+            View::m_cylinder->draw();
 
             if (i < THUMB) {
                 int secondIndex = FIRST_FINGER + 2 * i + 1;
                 glm::vec3 secondJoint = firstJoint +
-                        m_segmentLengths[2 * i + 1] * glm::normalize(glm::quat(data[secondIndex]) * glm::vec3(0, 0, -1));
-                M = glm::translate(secondJoint) * glm::toMat4(glm::quat(data[secondIndex])) * handScale;
+                        m_segmentLengths[2 * i + 1] * (getQuat(data[secondIndex]) * glm::vec3(0, 0, -1));
+                if (savePos) m_handPos[FIRST_KNUCKLE_POS + i * NUM_POINTS_PER_FINGER + 2] = secondJoint;
+                M = glm::translate(secondJoint) * glm::mat4_cast(getQuat(data[secondIndex])) * handScale;
                 m_program->setUniform("M", M);
                 m_program->applyMaterial(mat);
-                View::m_sphere->draw();
+                View::m_cylinder->draw();
             }
         }
     }
 
     // Shoulder
     mat.cDiffuse = glm::vec4(1, 1, 0, 1);
-    M = glm::translate(shoulder) * handScale;
+    M = glm::translate(shoulder) * glm::mat4_cast(getQuat(data[UPPERARM_ROT])) * handScale;
     m_program->applyMaterial(mat);
     m_program->setUniform("M", M);
     View::m_sphere->draw();
 
     // Elbow
-    M = glm::translate(elbow) * handScale;
+    M = glm::translate(elbow) * glm::mat4_cast(getQuat(data[FOREARM_ROT])) * handScale;
     m_program->setUniform("M", M);
     View::m_sphere->draw();
 
@@ -336,5 +495,49 @@ void DemoWorld::recordMotionGesture() {
         m_isRecordingMotion = false;
         m_waveDetector.saveMotionGesture(m_recordedMotion);
         m_recordedMotion.clear();
+    }
+}
+
+void DemoWorld::setScreenPlane() {
+    glm::vec3 v1 = m_handPos[THUMB1_POS] - m_handPos[PALM_POS];
+    glm::vec3 v2 = glm::normalize(m_handPos[KNUCKLE_2_POS] - m_handPos[PALM_POS]);
+    glm::vec3 nor = glm::cross(v2, glm::normalize(v1));
+    float angle = std::atan2(nor.y, nor.x);
+    glm::mat4 glmrotXY = glm::rotate(angle, glm::vec3(0, 0, 1));
+    float angleZ = -std::asin(nor.z);
+    glm::mat4 glmrotZ = glm::rotate(angleZ, glm::vec3(0, 1, 0));
+    screenPlaneRot = glmrotXY * glmrotZ;
+    screenPlanePos = m_handPos[PALM_POS] + v1 / 2.0f + glm::normalize(v1) * 0.345f / 2.0f + v2 * 0.195f / 2.0f;
+}
+
+void DemoWorld::scroll(bool up) {
+    const int minWheelMovement = 120;
+    mouse_event(MOUSEEVENTF_WHEEL, 0, 0, (up ? 1 : -1) * 4 * minWheelMovement, 0);
+}
+
+void DemoWorld::checkClick() {
+    if (!glm::isnan(screenPlanePos.x)) {
+        glm::vec4 o = glm::vec4(m_handPos[JOINT1_1_POS], 1);
+        glm::vec4 r = glm::normalize(glm::vec4(m_handPos[JOINT1_2_POS], 0) - o);
+        o -= glm::vec4(screenPlanePos, 0);
+        o = glm::inverse(screenPlaneRot) * o;
+        r = glm::normalize(glm::inverse(screenPlaneRot) * r);
+        const glm::vec4 nor = glm::vec4(1, 0, 0, 0);
+        if (glm::dot(nor, r) >= 0.0f) return;
+        float x = -glm::dot(nor, o) / glm::dot(nor, r);
+        if (x > 0.0f && x < 1.0f) {
+            m_clickPoint = glm::vec3(screenPlaneRot * (o + r * x)) + screenPlanePos;
+            glm::vec2 contact = glm::vec2(o.z + r.z*x, o.y + r.y*x) / glm::vec2(0.345f, 0.195f) + glm::vec2(0.5f);
+            if (contact.x > 0 && contact.x < 1 && contact.y > 0 && contact.y < 1.0) {
+                RECT desktop;
+                const HWND hDesktop = GetDesktopWindow();
+                GetWindowRect(hDesktop, &desktop);
+                SetCursorPos(desktop.right * contact.x, desktop.bottom * contact.y);
+//                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE, desktop.right * contact.x, desktop.bottom * contact.y, 0, 0);
+//                mouse_event(MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE, desktop.right * contact.x, desktop.bottom * contact.y, 0, 0);
+            }
+        } else {
+            m_clickPoint = glm::vec3(NAN);
+        }
     }
 }

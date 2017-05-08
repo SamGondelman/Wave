@@ -70,11 +70,11 @@ public:
         ignorePosition->setChecked(true);
         ignoreYaw = new QCheckBox(MotionGestureDialog);
         ignoreYaw->setObjectName(QStringLiteral("ignoreYaw"));
-        ignoreYaw->setGeometry(QRect(100, 130, 91, 23));
+        ignoreYaw->setGeometry(QRect(100, 170, 91, 23));
         ignoreYaw->setFont(font1);
         ignorePitch = new QCheckBox(MotionGestureDialog);
         ignorePitch->setObjectName(QStringLiteral("ignorePitch"));
-        ignorePitch->setGeometry(QRect(100, 170, 91, 23));
+        ignorePitch->setGeometry(QRect(100, 130, 91, 23));
         ignorePitch->setFont(font1);
         ignoreRoll = new QCheckBox(MotionGestureDialog);
         ignoreRoll->setObjectName(QStringLiteral("ignoreRoll"));

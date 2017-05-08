@@ -12,7 +12,7 @@
 #include "glm.hpp"
 
 enum HandData {
-    PALM_ROT,
+    PALM_ROT = 0,
     FINGER1_1_ROT,
     FINGER1_2_ROT,
     FINGER2_1_ROT,
@@ -26,6 +26,29 @@ enum HandData {
     UPPERARM_ROT,
     NUM_HAND_DATA,
     FIRST_FINGER = FINGER1_1_ROT
+};
+
+enum HandPositions {
+    PALM_POS = 0,
+    ELBOW_POS,
+    KNUCKLE_1_POS,
+    JOINT1_1_POS,
+    JOINT1_2_POS,
+    KNUCKLE_2_POS,
+    JOINT2_1_POS,
+    JOINT2_2_POS,
+    KNUCKLE_3_POS,
+    JOINT3_1_POS,
+    JOINT3_2_POS,
+    KNUCKLE_4_POS,
+    JOINT4_1_POS,
+    JOINT4_2_POS,
+    THUMB_KNUCKLE_POS,
+    THUMB1_POS,
+    THUMB2_POS,  // fake news
+    WRIST_POS,
+    NUM_HAND_POS,
+    FIRST_KNUCKLE_POS = KNUCKLE_1_POS
 };
 
 enum Fingers {
@@ -93,6 +116,9 @@ public:
     int getVisFrame() { return m_visFrame; }
     std::vector<std::shared_ptr<InstantGesture>> &getInstantGestures() { return m_instantGestures; }
     std::vector<std::shared_ptr<MotionGesture>> &getMotionGestures() { return m_motionGestures; }
+
+    std::unordered_map<int, QString> &getGestureNames() { return m_gestureNames; }
+    std::unordered_set<int> &getCurrentGestures() { return m_currentGestures; }
 
 private:
     int m_gestureID { 0 };

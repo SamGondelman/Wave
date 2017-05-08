@@ -441,6 +441,8 @@ void View::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_R) m_world->reset();
     if (event->key() == Qt::Key_I) m_world->saveInstantGesture();
     if (event->key() == Qt::Key_M) m_world->recordMotionGesture();
+    if (event->key() == Qt::Key_K) m_world->m_mode = (Mode) (glm::mod((float)m_world->m_mode - 1, (float)NUM_MODES));
+    if (event->key() == Qt::Key_L) m_world->m_mode = (Mode) (glm::mod((float)m_world->m_mode + 1, (float)NUM_MODES));
     if (event->key() == Qt::Key_Left) m_world->getWaveDetector().changeVisualizedID(-1);
     if (event->key() == Qt::Key_Right) m_world->getWaveDetector().changeVisualizedID(1);
 }

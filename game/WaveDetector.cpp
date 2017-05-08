@@ -317,7 +317,7 @@ void WaveDetector::update(float dt, const std::vector<glm::vec3> &data) {
 
     // Update visualizer frame if motion gesture selected
     if (m_visID > (int) m_instantGestures.size()) {
-        if (m_visFrameTime > m_motionGestures[m_visID - m_instantGestures.size() - 1]->getFrames()[m_visFrame].second) {
+        if (m_visFrameTime > 0.01f/*m_motionGestures[m_visID - m_instantGestures.size() - 1]->getFrames()[m_visFrame].second*/) {
             m_visFrameTime = 0.0f;
             m_visFrame = (m_visFrame + 1) % m_motionGestures[m_visID - m_instantGestures.size() - 1]->getNumFrames();
         }
@@ -334,6 +334,7 @@ void WaveDetector::update(float dt, const std::vector<glm::vec3> &data) {
     // Motion gestures
     for (size_t i = 0; i < m_motionGestures.size(); i++) {
         int currFrame = m_currentFramesDurations[i].first;
+//        std::cout << currFrame << std::endl;
         int nextFrame = currFrame + 1;
         // if next frame detected
         //   if last frame, reset timer, frame, add to currentGestures
