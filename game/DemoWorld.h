@@ -8,7 +8,8 @@
 #include "WaveDetector.h"
 
 enum Mode {
-    NONE = 0,
+    SERVER = 0,
+    NONE,
     LIGHT_ON,
     BRIGHTNESS,
     SCROLL_UP,
@@ -37,7 +38,7 @@ public:
     void scroll(bool up);
     void checkClick();
 
-    Mode m_mode { NONE };
+    Mode m_mode;
 private:
     // demo specific stuff
     bool renderLightCube { false };

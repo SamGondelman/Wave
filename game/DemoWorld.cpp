@@ -48,7 +48,7 @@ DemoWorld::DemoWorld() : World(":/shaders/shader.vert", ":/shaders/shader.frag")
     m_segmentLengths[2 * WRIST - 1] = 0.254f;
     m_segmentLengths[2 * WRIST] = 0.3302f;
 
-//    startServer();
+    startServer();
 }
 
 DemoWorld::~DemoWorld() {
@@ -132,8 +132,8 @@ void DemoWorld::makeCurrent() {
 }
 
 void DemoWorld::update(float dt) {
-    View::m_player->setEye(glm::vec3(0.8f*glm::sin(View::m_globalTime/5.0f), 0.8f, 0.8f*glm::cos(View::m_globalTime/5.0f)));
-//    View::m_player->setEye(glm::vec3(0.8f, 0.8f, 0.8f));
+//    View::m_player->setEye(glm::vec3(0.8f*glm::sin(View::m_globalTime/5.0f), 0.8f, 0.8f*glm::cos(View::m_globalTime/5.0f)));
+    View::m_player->setEye(glm::vec3(0.8f, 0.8f, 0.8f));
     View::m_player->setCenter(glm::vec3(0, 0.15, 0));
 
     if (serverStarted) {
@@ -160,9 +160,9 @@ void DemoWorld::update(float dt) {
         int numVecs = numBytes / sizeof(float) / 3;
         for (int i = 0; i < numVecs; i++) {
             int j = i % (Gesture::NUM_DATA / 3);
-            m_handData[j] += getQuat(m_handData[j]) * res[i];
+            glm::quat m = getQuat(m_handData[j]) * getQuat(res[i]);
             // 0 < angle < 2*PI
-            m_handData[j] = glm::mod(m_handData[j], M_2PI);
+            m_handData[j] = glm::mod(glm::vec3(glm::pitch(m), glm::yaw(m), glm::roll(m)), M_2PI);
         }
     }
 
@@ -186,12 +186,6 @@ void DemoWorld::update(float dt) {
             checkClick();
         }
     }
-
-    // turn on light box (motion)
-    // set brightness of box (instant)
-    // scrolling up and down(motion)
-    // set screen plane (instant) 0.0345 * 0.0195
-    // click (instant)
 
     if (m_mode == NONE) {
         m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 90));
@@ -297,7 +291,7 @@ void DemoWorld::reset() {
     // Calibrated hand orientation
     m_handData.resize(NUM_HAND_DATA);
     // rotations are pitch, yaw, roll
-    m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 90));
+    m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 270));
     m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(290, 0, 270));
     m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(290, 0, 270));
     m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270, 0, 270));
@@ -379,10 +373,22 @@ glm::quat DemoWorld::getQuat(const glm::vec3 &p) {
     float pitch = p.x;
     float yaw = p.y;
     float roll = p.z;
-    glm::quat pitchQuat(glm::cos(pitch / 2.0f), glm::cross(glm::vec3(0, 0, -1), glm::vec3(0, 1, 0) * glm::sin(pitch / 2.0f)));
-    glm::quat yawQuat(glm::cos(yaw / 2.0f), glm::vec3(0, 1, 0) * glm::sin((yaw / 2.0f)));
-    glm::quat rollQuat(glm::cos(roll / 2.0f), glm::vec3(0, 0, -1) * glm::sin((roll / 2.0f)));
-    return glm::normalize(yawQuat * pitchQuat * rollQuat);
+//    glm::quat pitchQuat(glm::cos(pitch / 2.0f), glm::cross(glm::vec3(0, 0, -1), glm::vec3(0, 1, 0) * glm::sin(pitch / 2.0f)));
+//    glm::quat yawQuat(glm::cos(yaw / 2.0f), glm::vec3(0, 1, 0) * glm::sin(yaw / 2.0f));
+//    glm::quat rollQuat(glm::cos(roll / 2.0f), glm::vec3(0, 0, -1) * glm::sin(roll / 2.0f));
+//    return glm::normalize(yawQuat * pitchQuat * rollQuat);
+
+    double t0 = std::cos(yaw * 0.5f);
+    double t1 = std::sin(yaw * 0.5f);
+    double t2 = std::cos(roll * 0.5f);
+    double t3 = std::sin(roll * 0.5f);
+    double t4 = std::cos(pitch * 0.5f);
+    double t5 = std::sin(pitch * 0.5f);
+
+    return glm::quat(t0 * t2 * t4 + t1 * t3 * t5,
+                     t0 * t2 * t5 + t1 * t3 * t4,
+                     t1 * t2 * t4 - t0 * t3 * t5,
+                     t0 * t3 * t4 - t1 * t2 * t5);
 }
 
 void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool savePos) {
