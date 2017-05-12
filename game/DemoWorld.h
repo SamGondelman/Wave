@@ -64,7 +64,6 @@ private:
     void stopServer();
 
     void drawHand(const std::vector<glm::vec3> &data, float scale, bool savePos = false);
-    glm::quat getQuat(const glm::vec3 &p);
 };
 
 #endif // DEMOWORLD_H

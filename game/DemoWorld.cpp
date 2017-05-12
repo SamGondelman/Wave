@@ -160,9 +160,9 @@ void DemoWorld::update(float dt) {
         int numVecs = numBytes / sizeof(float) / 3;
         for (int i = 0; i < numVecs; i++) {
             int j = i % (Gesture::NUM_DATA / 3);
-            glm::quat m = getQuat(m_handData[j]) * getQuat(res[i]);
+            glm::quat m = glm::quat(m_handData[j]) * glm::quat(res[i]);
             // 0 < angle < 2*PI
-            m_handData[j] = glm::mod(glm::vec3(glm::pitch(m), glm::yaw(m), glm::roll(m)), M_2PI);
+            m_handData[j] = glm::mod(glm::eulerAngles(m), M_2PI);
         }
     }
 
@@ -291,18 +291,18 @@ void DemoWorld::reset() {
     // Calibrated hand orientation
     m_handData.resize(NUM_HAND_DATA);
     // rotations are pitch, yaw, roll
-    m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 270));
-    m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(290, 0, 270));
-    m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(290, 0, 270));
-    m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270, 0, 270));
-    m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(270, 0, 270));
-    m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(240, 0, 270));
-    m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(240, 0, 270));
-    m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(230, 0, 270));
-    m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(230, 0, 270));
-    m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 270));
-    m_handData[FOREARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
-    m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+    m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 270, 270));
+    m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 290, 270));
+    m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 290, 270));
+    m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 270, 270));
+    m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 270, 270));
+    m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 240, 270));
+    m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 240, 270));
+    m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 230, 270));
+    m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 230, 270));
+    m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 0));
+    m_handData[FOREARM_ROT] = glm::radians(glm::vec3(90, 0, 180));
+    m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(90, 0, 180));
 
     m_handPos.resize(NUM_HAND_POS);
 }
@@ -369,28 +369,6 @@ void DemoWorld::drawGeometry() {
     }
 }
 
-glm::quat DemoWorld::getQuat(const glm::vec3 &p) {
-    float pitch = p.x;
-    float yaw = p.y;
-    float roll = p.z;
-//    glm::quat pitchQuat(glm::cos(pitch / 2.0f), glm::cross(glm::vec3(0, 0, -1), glm::vec3(0, 1, 0) * glm::sin(pitch / 2.0f)));
-//    glm::quat yawQuat(glm::cos(yaw / 2.0f), glm::vec3(0, 1, 0) * glm::sin(yaw / 2.0f));
-//    glm::quat rollQuat(glm::cos(roll / 2.0f), glm::vec3(0, 0, -1) * glm::sin(roll / 2.0f));
-//    return glm::normalize(yawQuat * pitchQuat * rollQuat);
-
-    double t0 = std::cos(yaw * 0.5f);
-    double t1 = std::sin(yaw * 0.5f);
-    double t2 = std::cos(roll * 0.5f);
-    double t3 = std::sin(roll * 0.5f);
-    double t4 = std::cos(pitch * 0.5f);
-    double t5 = std::sin(pitch * 0.5f);
-
-    return glm::quat(t0 * t2 * t4 + t1 * t3 * t5,
-                     t0 * t2 * t5 + t1 * t3 * t4,
-                     t1 * t2 * t4 - t0 * t3 * t5,
-                     t0 * t3 * t4 - t1 * t2 * t5);
-}
-
 void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool savePos) {
     CS123SceneMaterial mat;
     mat.cAmbient = glm::vec4(0.1, 0, 0, 1);
@@ -403,16 +381,16 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool s
     if (glm::isnan(palmRot.x)) palmRot.x = 0;
     if (glm::isnan(palmRot.y)) palmRot.y = 0;
     if (glm::isnan(palmRot.z)) palmRot.z = 0;
-    glm::quat handRotQuat = getQuat(palmRot);
+    glm::quat handRotQuat = glm::quat(palmRot);
     glm::mat4 handRot = glm::toMat4(handRotQuat);
     glm::mat4 handScale = glm::scale(glm::vec3(0.01, 0.01, 2.0*scale));
 
     const glm::vec3 shoulder = glm::vec3(0.22, 0.47, 0);
-    glm::vec3 elbow = shoulder + m_segmentLengths[2 * WRIST] * (getQuat(data[UPPERARM_ROT]) * glm::vec3(0, 0, -1));
+    glm::vec3 elbow = shoulder + m_segmentLengths[2 * WRIST] * (glm::quat(data[UPPERARM_ROT]) * glm::vec3(0, 0, -1));
     if (glm::isnan(elbow.x)) elbow.x = 0;
     if (glm::isnan(elbow.y)) elbow.y = 0;
     if (glm::isnan(elbow.z)) elbow.z = 0;
-    glm::vec3 wrist = elbow + m_segmentLengths[2 * WRIST - 1] * (getQuat(data[FOREARM_ROT]) * glm::vec3(0, 0, -1));
+    glm::vec3 wrist = elbow + m_segmentLengths[2 * WRIST - 1] * (glm::quat(data[FOREARM_ROT]) * glm::vec3(0, 0, -1));
 
     if (glm::isnan(wrist.x)) wrist.x = 0;
     if (glm::isnan(wrist.y)) wrist.y = 0;
@@ -446,9 +424,9 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool s
         if (i < WRIST) {
             int firstIndex = FIRST_FINGER + 2 * i;
             glm::vec3 firstJoint = palmPos + handRotQuat * m_offsets[i] +
-                    m_segmentLengths[2 * i] * (getQuat(data[firstIndex]) * glm::vec3(0, 0, -1));
+                    m_segmentLengths[2 * i] * (glm::quat(data[firstIndex]) * glm::vec3(0, 0, -1));
             if (savePos) m_handPos[FIRST_KNUCKLE_POS + i * NUM_POINTS_PER_FINGER + 1] = firstJoint;
-            M = glm::translate(firstJoint) * glm::mat4_cast(getQuat(data[firstIndex])) * handScale;
+            M = glm::translate(firstJoint) * glm::mat4_cast(glm::quat(data[firstIndex])) * handScale;
             m_program->setUniform("M", M);
             mat.cDiffuse = glm::vec4(1, 0, 0, 1);
             m_program->applyMaterial(mat);
@@ -457,9 +435,9 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool s
             if (i < THUMB) {
                 int secondIndex = FIRST_FINGER + 2 * i + 1;
                 glm::vec3 secondJoint = firstJoint +
-                        m_segmentLengths[2 * i + 1] * (getQuat(data[secondIndex]) * glm::vec3(0, 0, -1));
+                        m_segmentLengths[2 * i + 1] * (glm::quat(data[secondIndex]) * glm::vec3(0, 0, -1));
                 if (savePos) m_handPos[FIRST_KNUCKLE_POS + i * NUM_POINTS_PER_FINGER + 2] = secondJoint;
-                M = glm::translate(secondJoint) * glm::mat4_cast(getQuat(data[secondIndex])) * handScale;
+                M = glm::translate(secondJoint) * glm::mat4_cast(glm::quat(data[secondIndex])) * handScale;
                 m_program->setUniform("M", M);
                 m_program->applyMaterial(mat);
                 View::m_cylinder->draw();
@@ -469,15 +447,17 @@ void DemoWorld::drawHand(const std::vector<glm::vec3> &data, float scale, bool s
 
     // Shoulder
     mat.cDiffuse = glm::vec4(1, 1, 0, 1);
-    M = glm::translate(shoulder) * glm::mat4_cast(getQuat(data[UPPERARM_ROT])) * handScale;
+    M = glm::translate(shoulder) * glm::mat4_cast(glm::quat(data[UPPERARM_ROT])) *
+            glm::scale(glm::vec3(0.01, 0.01, m_segmentLengths[2 * WRIST])) * glm::translate(glm::vec3(0, 0, -0.5f));
     m_program->applyMaterial(mat);
     m_program->setUniform("M", M);
-    View::m_sphere->draw();
+    View::m_cube->draw();
 
     // Elbow
-    M = glm::translate(elbow) * glm::mat4_cast(getQuat(data[FOREARM_ROT])) * handScale;
+    M = glm::translate(elbow) * glm::mat4_cast(glm::quat(data[FOREARM_ROT])) *
+            glm::scale(glm::vec3(0.01, 0.01, m_segmentLengths[2 * WRIST - 1])) * glm::translate(glm::vec3(0, 0, -0.5f));
     m_program->setUniform("M", M);
-    View::m_sphere->draw();
+    View::m_cube->draw();
 
     // Body center and neck
     M = handScale;
