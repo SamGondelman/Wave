@@ -35,6 +35,7 @@ public:
 
     void switchLight() { renderLightCube = !renderLightCube; }
     void setScreenPlane();
+    void resetScreen() { screenPlanePos = glm::vec3(NAN); m_clickPoint = glm::vec3(NAN); }
     void scroll(bool up);
     void checkClick();
 

@@ -345,7 +345,7 @@ void DemoWorld::drawGeometry() {
     }
 
     if (!glm::isnan(screenPlanePos.x)) {
-        M = glm::translate(screenPlanePos) * screenPlaneRot * glm::scale(glm::vec3(0.001f, 0.195f, 0.345f));
+        M = glm::translate(screenPlanePos) * screenPlaneRot * glm::scale(glm::vec3(0.345f, 0.001f, 0.195f));
         m_program->setUniform("M", M);
         CS123SceneMaterial mat;
         mat.cAmbient = glm::vec4(0.1, 0.1, 0.1, 1);
@@ -485,15 +485,10 @@ void DemoWorld::recordMotionGesture() {
 }
 
 void DemoWorld::setScreenPlane() {
-    glm::vec3 v1 = m_handPos[THUMB1_POS] - m_handPos[PALM_POS];
+    glm::vec3 v1 = glm::normalize(m_handPos[THUMB1_POS] - m_handPos[PALM_POS]);
     glm::vec3 v2 = glm::normalize(m_handPos[KNUCKLE_2_POS] - m_handPos[PALM_POS]);
-    glm::vec3 nor = glm::cross(v2, glm::normalize(v1));
-    float angle = std::atan2(nor.y, nor.x);
-    glm::mat4 glmrotXY = glm::rotate(angle, glm::vec3(0, 0, 1));
-    float angleZ = -std::asin(nor.z);
-    glm::mat4 glmrotZ = glm::rotate(angleZ, glm::vec3(0, 1, 0));
-    screenPlaneRot = glmrotXY * glmrotZ;
-    screenPlanePos = m_handPos[PALM_POS] + v1 / 2.0f + glm::normalize(v1) * 0.345f / 2.0f + v2 * 0.195f / 2.0f;
+    screenPlaneRot = glm::mat4_cast(glm::quat(m_handData[FINGER1_1_ROT]));
+    screenPlanePos = m_handPos[PALM_POS] + v1 * 0.345f / 2.0f + v2 * 0.195f / 2.0f;
 }
 
 void DemoWorld::scroll(bool up) {
@@ -508,13 +503,13 @@ void DemoWorld::checkClick() {
         o -= glm::vec4(screenPlanePos, 0);
         o = glm::inverse(screenPlaneRot) * o;
         r = glm::normalize(glm::inverse(screenPlaneRot) * r);
-        const glm::vec4 nor = glm::vec4(1, 0, 0, 0);
+        const glm::vec4 nor = glm::vec4(0, 1, 0, 0);
         if (glm::dot(nor, r) >= 0.0f) return;
         float x = -glm::dot(nor, o) / glm::dot(nor, r);
-        if (x > 0.0f && x < 1.0f) {
+        if (x > 0.0f/* && x < 1.0f*/) {
             m_clickPoint = glm::vec3(screenPlaneRot * (o + r * x)) + screenPlanePos;
-            glm::vec2 contact = glm::vec2(o.z + r.z*x, o.y + r.y*x) / glm::vec2(0.345f, 0.195f) + glm::vec2(0.5f);
-            if (contact.x > 0 && contact.x < 1 && contact.y > 0 && contact.y < 1.0) {
+            glm::vec2 contact = glm::vec2(o.x + r.x*x, o.z + r.z*x) / glm::vec2(0.195f, 0.345f);
+            if (contact.x > 0 && contact.x < 1 && contact.y > 0 && contact.y < 1) {
                 RECT desktop;
                 const HWND hDesktop = GetDesktopWindow();
                 GetWindowRect(hDesktop, &desktop);
