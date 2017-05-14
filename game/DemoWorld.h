@@ -39,7 +39,7 @@ public:
     void scroll(bool up);
     void checkClick();
 
-    Mode m_mode;
+    Mode m_mode { NONE };
 private:
     // demo specific stuff
     bool renderLightCube { false };

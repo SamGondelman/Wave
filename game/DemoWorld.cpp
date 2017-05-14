@@ -48,7 +48,7 @@ DemoWorld::DemoWorld() : World(":/shaders/shader.vert", ":/shaders/shader.frag")
     m_segmentLengths[2 * WRIST - 1] = 0.254f;
     m_segmentLengths[2 * WRIST] = 0.3302f;
 
-    startServer();
+//    startServer();
 }
 
 DemoWorld::~DemoWorld() {
@@ -160,9 +160,8 @@ void DemoWorld::update(float dt) {
         int numVecs = numBytes / sizeof(float) / 3;
         for (int i = 0; i < numVecs; i++) {
             int j = i % (Gesture::NUM_DATA / 3);
-            glm::quat m = glm::quat(m_handData[j]) * glm::quat(res[i]);
             // 0 < angle < 2*PI
-            m_handData[j] = glm::mod(glm::eulerAngles(m), M_2PI);
+            m_handData[j] = glm::mod(glm::eulerAngles(glm::quat(m_handData[j]) * glm::quat(res[i])), M_2PI);
         }
     }
 
@@ -173,7 +172,7 @@ void DemoWorld::update(float dt) {
         if (m_waveDetector.getGestureNames()[g] == "light switch") {
             switchLight();
         } else if (m_waveDetector.getGestureNames()[g] == "brightness") {
-            lightCubeBrightness = (glm::clamp(glm::mod((float)(m_handData[PALM_ROT].z + M_PI_2), M_2PI) / M_PI, 0.5, 1.5) - 0.5f);
+            lightCubeBrightness = glm::clamp((m_handPos[PALM_POS].y - 0.1f) / 0.432f, 0.0f, 1.0f);
         } else if (m_waveDetector.getGestureNames()[g] == "scroll up") {
             scroll(true);
             std::cout << "scroll up" << std::endl;
@@ -188,47 +187,44 @@ void DemoWorld::update(float dt) {
     }
 
     if (m_mode == NONE) {
-        m_handData[PALM_ROT] = glm::radians(glm::vec3(270, 0, 90));
-        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(290, 0, 270));
-        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(290, 0, 270));
-        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(270, 0, 270));
-        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(270, 0, 270));
-        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(240, 0, 270));
-        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(240, 0, 270));
-        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(230, 0, 270));
-        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(230, 0, 270));
-        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 270));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 270, 270));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 290, 270));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 290, 270));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 270, 270));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 270, 270));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 240, 270));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 240, 270));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 230, 270));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 230, 270));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(300, 0, 0));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(90, 0, 180));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(90, 0, 180));
     } else if (m_mode == LIGHT_ON) {
-        float yawDiff = 30 * glm::sin(View::m_globalTime/3.0f);
-        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, 180));
-        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 340 + yawDiff, 180));
-        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 340 + yawDiff, 180));
-        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0 + yawDiff, 180));
-        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0 + yawDiff, 180));
-        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 30 + yawDiff, 180));
-        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 30 + yawDiff, 180));
-        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 40 + yawDiff, 180));
-        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 40 + yawDiff, 180));
-        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 330 + yawDiff, 180));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime/2.0f)-1), 30 * glm::sin(View::m_globalTime*1.2f), 90));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime*1.5f)-1), 30 * glm::sin(View::m_globalTime/0.8f), 90));
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0, 180));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(-90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 20, 180));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(-180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 20, 180));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(-90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0, 180));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(-180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 0, 180));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(-90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 330, 180));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(-180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 330, 180));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(-90 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 320, 180));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(-180 * (1.0f - glm::mod(View::m_globalTime/2.0f, 1.0f)), 320, 180));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(-20 + 90 * (glm::mod(View::m_globalTime/2.0f, 1.0f)), 45, 270));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(30 * glm::sin(View::m_globalTime*1.2f), -30 * (glm::sin(View::m_globalTime/2.0f)+1), 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * glm::sin(View::m_globalTime/0.8f), 45 + 30 * (glm::sin(View::m_globalTime*1.5f)+1), 90));
     } else if (m_mode == BRIGHTNESS) {
-        float yawDiff = 30 * glm::sin(View::m_globalTime/3.0f);
-        float roll = -178 * glm::sin(View::m_globalTime/2.3f) + 89;
-        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 0 + yawDiff, roll));
-        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 10 + yawDiff, roll));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime/2.0f)-1), 30 * glm::sin(View::m_globalTime*1.2f), 270));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * (glm::sin(View::m_globalTime*1.5f)-1), 30 * glm::sin(View::m_globalTime/0.8f), 270));
+        m_handData[PALM_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER2_1_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER2_2_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER3_1_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER3_2_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(0, 0, 0));
+        m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 10, 270));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, -30 * (glm::sin(View::m_globalTime*3.0f)+1), 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(0, 45 + 30 * (glm::sin(View::m_globalTime*1.5f)+1), 90));
     } else if (m_mode == SCROLL_UP) {
         float pitch = 45 * glm::sin(View::m_globalTime*3.0f);
         m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
@@ -241,8 +237,8 @@ void DemoWorld::update(float dt) {
         m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
         m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
         m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, 0, 180));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, -45, 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(0, 45, 90));
     } else if (m_mode == SCROLL_DOWN) {
         float pitch = 45 * glm::sin(View::m_globalTime*3.0f);
         m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
@@ -255,8 +251,8 @@ void DemoWorld::update(float dt) {
         m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
         m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
         m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, 0, 180));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270, 0, 180));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, -45, 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(0, 45, 90));
     } else if (m_mode == SET_PLANE) {
         m_handData[PALM_ROT] = glm::radians(glm::vec3(90, 0, 0));
         m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + 45 * (glm::sin(View::m_globalTime/2.0f)+1), 0, 0));
@@ -268,10 +264,10 @@ void DemoWorld::update(float dt) {
         m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(0, 330, 0));
         m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(270, 330, 0));
         m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(0, 300 + 75 * (glm::sin(View::m_globalTime/2.0f)+1), 0));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(60 - 25 * (glm::sin(View::m_globalTime/2.0f)+1), -20 * (glm::sin(View::m_globalTime/2.0f)+1), 180));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(270 + 22.5 * (glm::sin(View::m_globalTime/2.0f)+1), 0, 180));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(-20 * (glm::sin(View::m_globalTime/2.0f)+1), -60 + 25 * (glm::sin(View::m_globalTime/2.0f)+1), 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(0, 90 - 22.5 * (glm::sin(View::m_globalTime/2.0f)+1), 90));
     } else if (m_mode == CLICK) {
-        float pitch = 10 * glm::sin(View::m_globalTime*3.0f) - 10;
+        float pitch = 15;
         m_handData[PALM_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
         m_handData[FINGER1_1_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
         m_handData[FINGER1_2_ROT] = glm::radians(glm::vec3(0 + pitch, 0, 0));
@@ -282,8 +278,8 @@ void DemoWorld::update(float dt) {
         m_handData[FINGER4_1_ROT] = glm::radians(glm::vec3(270 + pitch, 330, 0));
         m_handData[FINGER4_2_ROT] = glm::radians(glm::vec3(180 + pitch, 330, 0));
         m_handData[THUMB_1_ROT] = glm::radians(glm::vec3(330 + pitch, 330, 0));
-        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(45 + 10 * glm::sin(View::m_globalTime/1.7f), 0, 180));
-        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(295, 30 * glm::sin(View::m_globalTime/1.5f) + 25, 180));
+        m_handData[FOREARM_ROT] = glm::radians(glm::vec3(0, -45 - 20 * glm::sin(View::m_globalTime/1.7f), 90));
+        m_handData[UPPERARM_ROT] = glm::radians(glm::vec3(30 * glm::sin(View::m_globalTime/1.5f), 75, 90));
     }
 }
 

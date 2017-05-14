@@ -11,6 +11,8 @@
 #include "InstantGestureDialog.h"
 #include "MotionGestureDialog.h"
 
+#include "glm/gtx/quaternion.hpp"
+
 #define M_2PI 6.28318530718f
 
 WaveDetector::WaveDetector(bool loadGestures)
@@ -63,22 +65,23 @@ InstantGesture::InstantGesture(int id, const std::vector<glm::vec3> &data, float
                bool usePosition, bool usePitch, bool useYaw, bool useRoll) :
     Gesture(id), m_margin(margin), m_data(data)
 {
-    glm::vec3 offset(0.0f);
-    if (!usePitch) {
-        offset.x = m_data[PALM_ROT].x;
-        m_data[PALM_ROT].x = NAN;
-    }
-    if (!useYaw) {
-        offset.y = m_data[PALM_ROT].y;
-        m_data[PALM_ROT].y = NAN;
-    }
-    if (!useRoll) {
-        offset.z = m_data[PALM_ROT].z;
-        m_data[PALM_ROT].z = NAN;
-    }
-    for (int i = FINGER1_1_ROT; i <= THUMB_1_ROT; i++) {
-        m_data[i] =  glm::mod(m_data[i] - offset, M_2PI);
-    }
+    // TODO: fix individual ignore functionality
+//    glm::vec3 offset(0.0f);
+//    if (!usePitch) {
+//        offset.x = m_data[PALM_ROT].x;
+//        m_data[PALM_ROT].x = NAN;
+//    }
+//    if (!useYaw) {
+//        offset.y = m_data[PALM_ROT].y;
+//        m_data[PALM_ROT].y = NAN;
+//    }
+//    if (!useRoll) {
+//        offset.z = m_data[PALM_ROT].z;
+//        m_data[PALM_ROT].z = NAN;
+//    }
+//    for (int i = FINGER1_1_ROT; i <= THUMB_1_ROT; i++) {
+//        m_data[i] =  glm::mod(glm::eulerAngles(glm::inverse(glm::quat(offset)) * (glm::quat(m_data[i]))), M_2PI);
+//    }
     if (!usePosition) {
         m_data[FOREARM_ROT] = glm::vec3(NAN);
         m_data[UPPERARM_ROT] = glm::vec3(NAN);
@@ -90,22 +93,23 @@ InstantGesture::InstantGesture(const std::vector<glm::vec3> &data, int index, fl
     m_margin(margin)
 {
     m_data.assign(data.begin() + index, data.begin() + index + NUM_DATA / 3);
-    glm::vec3 offset(0.0f);
-    if (!usePitch) {
-        offset.x = m_data[PALM_ROT].x;
-        m_data[PALM_ROT].x = NAN;
-    }
-    if (!useYaw) {
-        offset.y = m_data[PALM_ROT].y;
-        m_data[PALM_ROT].y = NAN;
-    }
-    if (!useRoll) {
-        offset.z = m_data[PALM_ROT].z;
-        m_data[PALM_ROT].z = NAN;
-    }
-    for (int i = FINGER1_1_ROT; i <= THUMB_1_ROT; i++) {
-        m_data[i] =  glm::mod(m_data[i] - offset, M_2PI);
-    }
+    // TODO: fix individual ignore functionality
+//    glm::vec3 offset(0.0f);
+//    if (!usePitch) {
+//        offset.x = m_data[PALM_ROT].x;
+//        m_data[PALM_ROT].x = NAN;
+//    }
+//    if (!useYaw) {
+//        offset.y = m_data[PALM_ROT].y;
+//        m_data[PALM_ROT].y = NAN;
+//    }
+//    if (!useRoll) {
+//        offset.z = m_data[PALM_ROT].z;
+//        m_data[PALM_ROT].z = NAN;
+//    }
+//    for (int i = FINGER1_1_ROT; i <= THUMB_1_ROT; i++) {
+//        m_data[i] =  glm::mod(glm::eulerAngles(glm::inverse(glm::quat(offset)) * (glm::quat(m_data[i]))), M_2PI);
+//    }
     if (!usePosition) {
         m_data[FOREARM_ROT] = glm::vec3(NAN);
         m_data[UPPERARM_ROT] = glm::vec3(NAN);
@@ -165,13 +169,16 @@ void InstantGesture::saveToFile(QString path) {
 bool InstantGesture::checkGesture(const std::vector<glm::vec3> &data) {
     float *dataF = (float *) data.data();
     float *m_dataF = (float *) m_data.data();
+    // TODO: fix individual ignore functionality
     glm::vec3 offset(0.0f);
-    if (glm::isnan(m_dataF[3 * PALM_ROT])) offset.x = dataF[3 * PALM_ROT];
-    if (glm::isnan(m_dataF[3 * PALM_ROT + 1])) offset.y = dataF[3 * PALM_ROT + 1];
-    if (glm::isnan(m_dataF[3 * PALM_ROT + 2])) offset.z = dataF[3 * PALM_ROT + 2];
+//    if (glm::isnan(m_data[PALM_ROT].x)) offset.x = data[PALM_ROT].x;
+//    if (glm::isnan(m_data[PALM_ROT].y)) offset.y = data[PALM_ROT].y;
+//    if (glm::isnan(m_data[PALM_ROT].z)) offset.z = data[PALM_ROT].z;
+    glm::quat invOffset = glm::inverse(glm::quat(offset));
     for (size_t i = 0; i < 3 * data.size(); i++) {
         if (glm::isnan(m_dataF[i])) continue;
-        float d = glm::mod(dataF[i] - (i < 3 * FOREARM_ROT ? offset[i % 3] : 0.0f), M_2PI);
+        glm::vec3 unrot = glm::mod(glm::eulerAngles(invOffset * glm::quat(data[(int) (i / 3)])), M_2PI);
+        float d = glm::mod((i < 3 * FOREARM_ROT ? unrot[i % 3] : dataF[i]), M_2PI);
         if (1.0f - glm::abs(glm::abs(m_dataF[i] - d) / M_PI - 1.0f) >= m_margin) {
             return false;
         }
@@ -187,7 +194,6 @@ MotionGesture::MotionGesture(int id, const std::vector<glm::vec3> &data, float m
     int frames = data.size() / NUM_DATA;
     m_frames.reserve(frames);
     for (int i = 0; i < frames; i++) {
-        // TODO: make InstantGesture constructor that doesn't use id
         std::shared_ptr<InstantGesture> g =
                 std::make_shared<InstantGesture>(data, i * NUM_DATA, margin, usePosition,
                                                  usePitch, useYaw, useRoll);
@@ -317,7 +323,7 @@ void WaveDetector::update(float dt, const std::vector<glm::vec3> &data) {
 
     // Update visualizer frame if motion gesture selected
     if (m_visID > (int) m_instantGestures.size()) {
-        if (m_visFrameTime > 0.01f/*m_motionGestures[m_visID - m_instantGestures.size() - 1]->getFrames()[m_visFrame].second*/) {
+        if (m_visFrameTime > 0.05f/*m_motionGestures[m_visID - m_instantGestures.size() - 1]->getFrames()[m_visFrame].second*/) {
             m_visFrameTime = 0.0f;
             m_visFrame = (m_visFrame + 1) % m_motionGestures[m_visID - m_instantGestures.size() - 1]->getNumFrames();
         }
